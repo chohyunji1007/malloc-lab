@@ -289,6 +289,7 @@ void *mm_realloc(void *ptr, size_t size)
             memmove(newptr, oldptr, new_size); // memcpy 사용 시, memcpy-param-overlap (memcpy : 겹치는 메모리는 지원하지 않음)발생
             mm_free(oldptr);
             return newptr;
+            
         }
     }
 }
