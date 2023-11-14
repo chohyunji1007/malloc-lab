@@ -78,8 +78,8 @@ team_t team = {
 #define PREV_BLKP(bp)   ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE))) // (char*)(bp) - GET_SIZE(이전 블록의 풋터값)
 
 /* Free List 상에서의 이전, 이후 블록의 포인터를 리턴한다. */
-#define PREC_FREEP(bp)  (*(void*)(bp))             // 이전 블록의 bp
-#define SUCC_FREEP(bp)  (*(void*)(bp + WSIZE))     // 이후 블록의 bp
+#define PREC_FREEP(bp)  (*(void**)(bp))             // 이전 블록의 bp
+#define SUCC_FREEP(bp)  (*(void**)(bp + WSIZE))     // 이후 블록의 bp
 
 
 /* define searching method for find suitable free blocks to allocate*/
