@@ -81,7 +81,7 @@ static void *next_fit(size_t adjusted_size);
 
 
 
-static void *coalesce(void *bp){
+static void *coalesce(void *bp){ //free하고 나서 이어져 붙어 있는 남은 공간을 확인해 합치는 함수
   size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
   size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
   size_t size = GET_SIZE(HDRP(bp));
@@ -135,7 +135,7 @@ static void *find_fit(size_t asize){
   }return best_fit;
 }
 
-static void *next_fit(size_t adjusted_size) {
+static void *next_fit(size_t adjusted_size) { //현재 할당 된 다음 가용 블럭에서부터 탐색 시작
     char *bp = next_heap_listp;
 
     for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
@@ -157,21 +157,21 @@ static void *next_fit(size_t adjusted_size) {
     return NULL;
 }
 
-static void place(void *bp, size_t asize){ //분할 후 남은 블록의 크기가 최소블록(16bytes)라면 블록을 하나 더 분할 해야한다
+static void place(void *bp, size_t asize){ //분할 후 남은 블록의 크기가 최소블록(16bytes)라면 블록을 하나 더 분할 해야 함.
   size_t csize = GET_SIZE(HDRP(bp));
 
-  if((csize - asize)>=(2*DSIZE)){
+  if((csize - asize)>=(2*DSIZE)){ //할당하고 남은 블럭이 16바이트 보다 크다면 블록 하나 더 분할
     PUT(HDRP(bp), PACK(asize, 1));
     PUT(FTRP(bp), PACK(asize, 1));
     bp = NEXT_BLKP(bp);
     PUT(HDRP(bp), PACK(csize-asize, 0));
     PUT(FTRP(bp), PACK(csize-asize, 0));
-  }else{
+  }else{ //작다면 그냥 그대로 할당~ 
     PUT(HDRP(bp), PACK(csize, 1));
     PUT(FTRP(bp), PACK(csize, 1));
   }
 }
-static void *extend_heap(size_t words)
+static void *extend_heap(size_t words) //heap의 저장공간이 모자라다면 늘려주기!
 {
     char *bp;
     size_t size;
@@ -227,15 +227,17 @@ void *mm_malloc(size_t size)
     
     if (size == 0)
         return NULL;
-    if (size <= DSIZE)
+    if (size <= DSIZE) //최소 할당 단위를 2*8바이트 = 16바이트로 할당 하기 위함
         asize = 2*DSIZE;
-    else
+    else 
         asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
-    if ((bp = next_fit(asize)) != NULL) {
+
+    if ((bp = next_fit(asize)) != NULL) { //next fit을 실행해 할당할 bp를 찾아줌
         place(bp, asize);
         next_heap_listp = bp;
         return bp;
     }
+    //next_fit()==NULL //할당 가능한 남은 블록이 없으므로 extend_heap을 이용해 heap영역을 늘려줌
     extendsize = MAX(asize, CHUNKSIZE);
     if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
         return NULL;
@@ -269,30 +271,29 @@ void mm_free(void *bp) {
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    void *oldptr = ptr; // 이전 포인터
-    void *newptr; // 새로 메모리 할당할포인터
+    void *old_ptr = ptr; // 이전 포인터
+    void *new_ptr; // 새로 메모리 할당할포인터
 
-    size_t originsize = GET_SIZE(HDRP(ptr)); // 원본 사이즈
-    size_t new_size = size + DSIZE; // 새 사이즈
+    size_t old_size = GET_SIZE(HDRP(ptr)); // 원본 사이즈
+    size_t asize = size + DSIZE; // 새 사이즈
 
     
-    if (new_size <= originsize) { // size 가 더 작은 경우 기존 bp 그대로 사용
-        return oldptr;
+    if (asize <= old_size) { // size 가 더 작은 경우 기존 bp 그대로 사용
+        return old_ptr;
     } else {
-        size_t addSize = originsize + GET_SIZE(HDRP(NEXT_BLKP(oldptr))); // 추가 사이즈 -> 헤더 포함 사이즈
-        if (!GET_ALLOC(HDRP(NEXT_BLKP(oldptr))) && (new_size <= addSize)){ // 가용 블록이고 사이즈 충분
-            PUT(HDRP(oldptr), PACK(addSize, 1)); // new header
-            PUT(FTRP(oldptr), PACK(addSize, 1)); // new footer
-            return oldptr;
+        size_t addSize = old_size + GET_SIZE(HDRP(NEXT_BLKP(old_ptr))); // 추가 사이즈 -> 헤더 포함 사이즈
+        if (!GET_ALLOC(HDRP(NEXT_BLKP(old_ptr))) && (asize <= addSize)){ // 가용 블록이고 사이즈 충분
+            PUT(HDRP(old_ptr), PACK(addSize, 1)); // new header
+            PUT(FTRP(old_ptr), PACK(addSize, 1)); // new footer
+            return old_ptr;
         } else {
-            newptr = mm_malloc(new_size);
-            if (newptr == NULL)
+            new_ptr = mm_malloc(asize);
+            if (new_ptr == NULL)
                 return NULL;
-            memmove(newptr, oldptr, new_size); // memcpy 사용 시, memcpy-param-overlap (memcpy : 겹치는 메모리는 지원하지 않음)발생
-            mm_free(oldptr);
-            return newptr;
+            memmove(new_ptr, old_ptr, asize); // memcpy 사용 시, memcpy-param-overlap (memcpy : 겹치는 메모리는 지원하지 않음)발생
+            mm_free(old_ptr);
+            return new_ptr;
             
         }
     }
 }
-
