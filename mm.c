@@ -135,6 +135,28 @@ static void *find_fit(size_t asize){
   }return best_fit;
 }
 
+static void *next_fit(size_t adjusted_size) {
+    char *bp = next_heap_listp;
+
+    for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= adjusted_size) {
+            next_heap_listp = bp;
+            return bp;
+        }
+    }
+
+    bp = heap_listp;
+    while (bp < next_heap_listp) {
+        bp = NEXT_BLKP(bp);
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= adjusted_size) {
+            next_heap_listp = bp;
+            return bp;
+        }
+    }
+
+    return NULL;
+}
+
 static void place(void *bp, size_t asize){ //분할 후 남은 블록의 크기가 최소블록(16bytes)라면 블록을 하나 더 분할 해야한다
   size_t csize = GET_SIZE(HDRP(bp));
 
@@ -180,7 +202,7 @@ int mm_init(void)
         return -1;
 
     PUT(heap_listp, 0); // alignment padding
-    PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1)); // prologue header
+    PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1)); // prologue header // DSIZE = prologue header + footer size
     PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1)); // prologue footer
     PUT(heap_listp + (3*WSIZE), PACK(0, 1)); // epliogue header
     heap_listp += (2*WSIZE);
@@ -222,27 +244,7 @@ void *mm_malloc(size_t size)
     return bp;
 }
 
-static void *next_fit(size_t adjusted_size) {
-    char *bp = next_heap_listp;
 
-    for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
-        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= adjusted_size) {
-            next_heap_listp = bp;
-            return bp;
-        }
-    }
-
-    bp = heap_listp;
-    while (bp < next_heap_listp) {
-        bp = NEXT_BLKP(bp);
-        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= adjusted_size) {
-            next_heap_listp = bp;
-            return bp;
-        }
-    }
-
-    return NULL;
-}
 /*
  * mm_free - Freeing a block does nothing.
    mm_free 루틴은 ptr이 가리키는 블록을 해제, 반환값 X
@@ -279,8 +281,8 @@ void *mm_realloc(void *ptr, size_t size)
     } else {
         size_t addSize = originsize + GET_SIZE(HDRP(NEXT_BLKP(oldptr))); // 추가 사이즈 -> 헤더 포함 사이즈
         if (!GET_ALLOC(HDRP(NEXT_BLKP(oldptr))) && (new_size <= addSize)){ // 가용 블록이고 사이즈 충분
-            PUT(HDRP(oldptr), PACK(addSize, 1)); // 새로운 헤더
-            PUT(FTRP(oldptr), PACK(addSize, 1)); // 새로운 푸터
+            PUT(HDRP(oldptr), PACK(addSize, 1)); // new header
+            PUT(FTRP(oldptr), PACK(addSize, 1)); // new footer
             return oldptr;
         } else {
             newptr = mm_malloc(new_size);
