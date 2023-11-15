@@ -158,9 +158,10 @@ static void *next_fit(size_t adjusted_size) { //현재 할당 된 다음 가용 
 }
 
 static void place(void *bp, size_t asize){ //분할 후 남은 블록의 크기가 최소블록(16bytes)라면 블록을 하나 더 분할 해야 함.
-  size_t csize = GET_SIZE(HDRP(bp));
+  size_t csize = GET_SIZE(HDRP(bp)); //현재 블록의 크기
 
-  if((csize - asize)>=(2*DSIZE)){ //할당하고 남은 블럭이 16바이트 보다 크다면 블록 하나 더 분할
+  //csize(현재 블록의 크기) - asize(할당할 데이터의 크기) = 현재 블럭에 데이터를 할당하고 남은 블록의 크기
+  if((csize - asize)>=(2*DSIZE)){ //할당하고 남은 블록이 16바이트 보다 크다면 블록 하나 더 분할 // 한 블록의 최소 크기 = 16 bytes
     PUT(HDRP(bp), PACK(asize, 1));
     PUT(FTRP(bp), PACK(asize, 1));
     bp = NEXT_BLKP(bp);
