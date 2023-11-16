@@ -282,12 +282,12 @@ void *mm_realloc(void *ptr, size_t size)
     if (asize <= old_size) { // size 가 더 작은 경우 기존 bp 그대로 사용
         return old_ptr;
     } else {
-        size_t addSize = old_size + GET_SIZE(HDRP(NEXT_BLKP(old_ptr))); // 추가 사이즈 -> 헤더 포함 사이즈
+        size_t addSize = old_size + GET_SIZE(HDRP(NEXT_BLKP(old_ptr))); // 현재 블록 뒤에 블록이 비어있다면 합칠 수 있으니 합쳐서 원래 블록 포인터에서 다시 사용
         if (!GET_ALLOC(HDRP(NEXT_BLKP(old_ptr))) && (asize <= addSize)){ // 가용 블록이고 사이즈 충분
             PUT(HDRP(old_ptr), PACK(addSize, 1)); // new header
             PUT(FTRP(old_ptr), PACK(addSize, 1)); // new footer
             return old_ptr;
-        } else {
+        } else { // 원래 블록을 사용하지 못하면 다른 블록을 사용
             new_ptr = mm_malloc(asize);
             if (new_ptr == NULL)
                 return NULL;
